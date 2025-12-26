@@ -1,0 +1,12 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "particle": "yostradepost:block/tradepost_front",
+    "north": "yostradepost:block/tradepost_front",
+    "south": "yostradepost:block/tradepost_side",
+    "east": "yostradepost:block/tradepost_side",
+    "west": "yostradepost:block/tradepost_side",
+    "up": "yostradepost:block/tradepost_top",
+    "down": "yostradepost:block/tradepost_side"
+  }
+}
