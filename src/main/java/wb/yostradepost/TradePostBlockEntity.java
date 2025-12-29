@@ -22,14 +22,11 @@ import java.util.List;
 import java.util.Map;
 
 public class TradePostBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
-    // 使用绝对时间刻系统，避免天数计算问题
-    private long lastProcessTime = -1; // 上次处理的时间刻
-    private long baseTime = -1; // 基准时间，用于校准
-    private static final long TICKS_PER_DAY = 24000L;
-    private static final long MAX_REASONABLE_TIME = TICKS_PER_DAY * 365 * 10; // 10年
+    // 存储上次处理的游戏日
+    private long lastTradeDay = -1;
 
-    // 调试模式
-    private boolean debugMode = true;
+    // 时间常量
+    private static final long TICKS_PER_DAY = 24000L;
 
     public TradePostBlockEntity(BlockPos pos, BlockState state) {
         super(YosTradePost.TRADE_POST_BLOCK_ENTITY, pos, state);
@@ -49,127 +46,95 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
     public void processTrades(PlayerEntity player) {
         if (world == null || world.isClient) return;
 
-        // 🔧 获取当前绝对时间刻（最可靠的方法）
-        long currentTime = getCurrentWorldTime();
+        // 🔧 修复：使用正确的游戏日计算方法
+        // 参考提供的代码：world.getTimeOfDay() / 24000L
+        long currentDay = getCurrentGameDay();
 
-        // 🔧 初始化基准时间（如果是第一次）
-        if (baseTime < 0) {
-            baseTime = currentTime;
+        YosTradePost.LOGGER.info("贸易站时间检查 - 当前游戏日: {}, 最后交易日: {}", currentDay, lastTradeDay);
+
+        // 数据验证
+        if (shouldResetData(currentDay)) {
+            YosTradePost.LOGGER.warn("检测到异常数据，重置最后交易日！当前日={}，最后交易日={}",
+                    currentDay, lastTradeDay);
+            lastTradeDay = -1;
             markDirty();
         }
 
-        // 🔧 计算相对于基准时间的天数（避免绝对天数计算的混乱）
-        long daysSinceBase = (currentTime - baseTime) / TICKS_PER_DAY;
-        long lastProcessDays = (lastProcessTime - baseTime) / TICKS_PER_DAY;
-
-        if (debugMode) {
-            YosTradePost.LOGGER.info("=== 贸易站时间系统 ===");
-            YosTradePost.LOGGER.info("当前时间刻: {}", currentTime);
-            YosTradePost.LOGGER.info("基准时间刻: {}", baseTime);
-            YosTradePost.LOGGER.info("上次处理时间: {}", lastProcessTime);
-            YosTradePost.LOGGER.info("相对于基准的天数: {}", daysSinceBase);
-            YosTradePost.LOGGER.info("上次处理的天数: {}", lastProcessDays);
-
-            // 同时显示传统的天数计算（用于调试）
-            long traditionalDay = currentTime / TICKS_PER_DAY;
-            YosTradePost.LOGGER.info("传统天数计算: {}", traditionalDay);
-        }
-
-        // 🔧 数据验证和修复
-        if (shouldResetTimeData(currentTime)) {
-            YosTradePost.LOGGER.warn("⚠️ 时间数据异常，执行重置！");
-            resetTimeData(currentTime);
-        }
-
-        // 🔧 检查是否应该处理（使用相对天数系统）
+        // 检查是否应该处理交易
         boolean shouldProcess = false;
 
-        if (lastProcessTime < 0) {
+        if (lastTradeDay < 0) {
             // 第一次使用
             shouldProcess = true;
             YosTradePost.LOGGER.info("第一次使用贸易站");
-        } else if (daysSinceBase > lastProcessDays) {
-            // 新的一天（相对于基准）
+        } else if (lastTradeDay < currentDay) {
+            // 新的一天
             shouldProcess = true;
-            YosTradePost.LOGGER.info("检测到新的一天（相对天数 {} > {}）",
-                    daysSinceBase, lastProcessDays);
-        } else if (currentTime - lastProcessTime > TICKS_PER_DAY) {
-            // 距离上次处理超过一天（绝对时间）
+            YosTradePost.LOGGER.info("检测到新的一天！从第 {} 天到第 {} 天",
+                    lastTradeDay, currentDay);
+        } else if (lastTradeDay > currentDay) {
+            // 时间倒流（比如使用/time set命令）
             shouldProcess = true;
-            YosTradePost.LOGGER.info("距离上次处理超过一天（{}刻）",
-                    currentTime - lastProcessTime);
-        } else if (lastProcessTime > currentTime) {
-            // 时间倒流（/time set命令）
-            shouldProcess = true;
-            YosTradePost.LOGGER.warn("⚠️ 时间倒流检测！上次={} > 当前={}",
-                    lastProcessTime, currentTime);
-        }
-
-        if (debugMode) {
-            YosTradePost.LOGGER.info("是否应该处理: {}", shouldProcess ? "✅ 是" : "❌ 否");
+            YosTradePost.LOGGER.warn("时间倒流检测！最后交易日={} > 当前日={}，强制处理",
+                    lastTradeDay, currentDay);
         }
 
         if (shouldProcess) {
-            YosTradePost.LOGGER.info("🔄 开始处理交易...");
+            YosTradePost.LOGGER.info("开始处理第 {} 天的交易...", currentDay);
             processDailyTrades(player);
-            lastProcessTime = currentTime;
+            lastTradeDay = currentDay;
             markDirty();
-            YosTradePost.LOGGER.info("✅ 交易处理完成，更新时间戳为 {}", lastProcessTime);
+            YosTradePost.LOGGER.info("第 {} 天交易处理完成", currentDay);
         } else {
-            YosTradePost.LOGGER.info("📅 今天已经处理过交易");
+            YosTradePost.LOGGER.info("第 {} 天已经处理过交易", lastTradeDay);
         }
     }
 
     /**
-     * 🔧 获取当前世界时间（最可靠的方法）
+     * 🔧 修复：使用正确的游戏日计算方法
+     * 根据参考代码：world.getTimeOfDay() / 24000L
      */
-    private long getCurrentWorldTime() {
+    private long getCurrentGameDay() {
         if (world == null) return 0;
 
-        // 方法1：尝试从世界属性获取（最准确）
-        try {
-            if (world.getLevelProperties() instanceof net.minecraft.world.WorldProperties) {
-                long worldTime = world.getLevelProperties().getTime();
-                if (worldTime >= 0 && worldTime < MAX_REASONABLE_TIME) {
-                    return worldTime;
-                }
-            }
-        } catch (Exception e) {
-            YosTradePost.LOGGER.warn("获取世界属性时间失败: {}", e.getMessage());
-        }
-
-        // 方法2：使用 world.getTime()
-        long worldTime = world.getTime();
-        if (worldTime >= 0 && worldTime < MAX_REASONABLE_TIME) {
-            return worldTime;
-        }
-
-        // 方法3：使用 world.getTimeOfDay()（可能返回绝对时间）
+        // 获取游戏时间（当天时间刻，0-23999）
         long timeOfDay = world.getTimeOfDay();
-        if (timeOfDay >= 0 && timeOfDay < MAX_REASONABLE_TIME) {
-            return timeOfDay;
-        }
 
-        // 默认返回0
-        return 0;
+        // 计算当前游戏日
+        long currentDay = timeOfDay / TICKS_PER_DAY;
+
+        return currentDay;
     }
 
     /**
-     * 🔧 检查是否需要重置时间数据
+     * 🔧 添加调试方法，显示详细时间信息
      */
-    private boolean shouldResetTimeData(long currentTime) {
-        // 检查 lastProcessTime
-        if (lastProcessTime < -1 || lastProcessTime > currentTime + TICKS_PER_DAY * 365) {
+    public void debugTimeInfo() {
+        if (world == null) return;
+
+        long timeOfDay = world.getTimeOfDay();
+        long totalTime = world.getTime();
+        long calculatedDay = timeOfDay / TICKS_PER_DAY;
+
+        YosTradePost.LOGGER.info("=== 时间调试信息 ===");
+        YosTradePost.LOGGER.info("world.getTimeOfDay(): {}", timeOfDay);
+        YosTradePost.LOGGER.info("world.getTime(): {}", totalTime);
+        YosTradePost.LOGGER.info("计算出的游戏日: {}", calculatedDay);
+        YosTradePost.LOGGER.info("最后交易日: {}", lastTradeDay);
+        YosTradePost.LOGGER.info("当天时间刻: {}", timeOfDay % TICKS_PER_DAY);
+    }
+
+    /**
+     * 🔧 判断是否需要重置数据
+     */
+    private boolean shouldResetData(long currentDay) {
+        // 如果 lastTradeDay 是未来很多天（明显错误）
+        if (lastTradeDay > currentDay + 100) {
             return true;
         }
 
-        // 检查 baseTime
-        if (baseTime < -1 || baseTime > currentTime + TICKS_PER_DAY * 365) {
-            return true;
-        }
-
-        // 如果 lastProcessTime 比基准时间还早（不应该发生）
-        if (lastProcessTime >= 0 && baseTime >= 0 && lastProcessTime < baseTime) {
+        // 如果 lastTradeDay 是极端负值
+        if (lastTradeDay < -100) {
             return true;
         }
 
@@ -177,22 +142,30 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
     }
 
     /**
-     * 🔧 重置时间数据
+     * 🔧 强制重置贸易站数据
      */
-    private void resetTimeData(long currentTime) {
-        YosTradePost.LOGGER.warn("重置时间数据：当前={}, 上次={}, 基准={}",
-                currentTime, lastProcessTime, baseTime);
+    public void resetTradeData() {
+        YosTradePost.LOGGER.warn("强制重置贸易站数据");
+        lastTradeDay = -1;
+        markDirty();
+    }
 
-        // 保留 lastProcessTime 但如果明显错误则重置
-        if (lastProcessTime < 0 || lastProcessTime > currentTime + TICKS_PER_DAY * 100) {
-            lastProcessTime = -1;
-        }
+    /**
+     * 🔧 强制执行交易（无视时间限制）
+     */
+    public void forceProcessTrades(PlayerEntity player) {
+        YosTradePost.LOGGER.info("强制执行交易处理");
+        processDailyTrades(player);
+        lastTradeDay = getCurrentGameDay();
+        markDirty();
+    }
 
-        // 总是重置基准时间为当前时间或合理值
-        if (baseTime < 0 || baseTime > currentTime || baseTime < currentTime - TICKS_PER_DAY * 365) {
-            baseTime = Math.max(0, currentTime - (currentTime % TICKS_PER_DAY));
-        }
-
+    /**
+     * 🔧 手动设置最后交易日（用于修复）
+     */
+    public void setLastTradeDay(long day) {
+        YosTradePost.LOGGER.info("手动设置最后交易日为: {}", day);
+        lastTradeDay = day;
         markDirty();
     }
 
@@ -237,10 +210,8 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
                 playerInventory.setStack(i, finalStack);
                 filledSlots++;
 
-                if (debugMode) {
-                    YosTradePost.LOGGER.info("最终槽位{}: {}x {}", i, finalStack.getCount(),
-                            Registries.ITEM.getId(finalStack.getItem()));
-                }
+                YosTradePost.LOGGER.info("最终槽位{}: {}x {}", i, finalStack.getCount(),
+                        Registries.ITEM.getId(finalStack.getItem()));
             }
         }
 
@@ -256,84 +227,7 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
             }
         }
 
-        YosTradePost.LOGGER.info("✅ 交易处理完成，填充了{}个槽位", filledSlots);
-    }
-
-    // 🔧 添加完整的时间调试命令
-    public void debugTime() {
-        if (world == null) return;
-
-        long currentTime = getCurrentWorldTime();
-        long traditionalDay = currentTime / TICKS_PER_DAY;
-
-        YosTradePost.LOGGER.info("=== 时间调试 ===");
-        YosTradePost.LOGGER.info("world.getTime(): {}", world.getTime());
-        YosTradePost.LOGGER.info("world.getTimeOfDay(): {}", world.getTimeOfDay());
-
-        try {
-            if (world.getLevelProperties() instanceof net.minecraft.world.WorldProperties) {
-                YosTradePost.LOGGER.info("world.getLevelProperties().getTime(): {}",
-                        world.getLevelProperties().getTime());
-            }
-        } catch (Exception e) {
-            YosTradePost.LOGGER.info("无法获取LevelProperties时间");
-        }
-
-        YosTradePost.LOGGER.info("getCurrentWorldTime(): {}", currentTime);
-        YosTradePost.LOGGER.info("传统天数计算: {}", traditionalDay);
-        YosTradePost.LOGGER.info("基准时间: {}", baseTime);
-        YosTradePost.LOGGER.info("上次处理时间: {}", lastProcessTime);
-        YosTradePost.LOGGER.info("相对天数: {}",
-                baseTime >= 0 ? (currentTime - baseTime) / TICKS_PER_DAY : "N/A");
-    }
-
-    // 🔧 强制重新校准基准时间
-    public void recalibrate() {
-        if (world == null) return;
-
-        long currentTime = getCurrentWorldTime();
-        long traditionalDay = currentTime / TICKS_PER_DAY;
-
-        YosTradePost.LOGGER.info("=== 重新校准 ===");
-        YosTradePost.LOGGER.info("当前时间: {}", currentTime);
-        YosTradePost.LOGGER.info("传统天数: {}", traditionalDay);
-
-        // 设置基准时间为最近的一天开始
-        baseTime = currentTime - (currentTime % TICKS_PER_DAY);
-        lastProcessTime = -1; // 重置处理时间
-
-        YosTradePost.LOGGER.info("新基准时间: {}", baseTime);
-        YosTradePost.LOGGER.info("重置处理时间");
-
-        markDirty();
-    }
-
-    // 🔧 强制立即处理（无视时间）
-    public void forceProcess(PlayerEntity player) {
-        YosTradePost.LOGGER.info("🔧 强制立即处理交易");
-        processDailyTrades(player);
-        lastProcessTime = getCurrentWorldTime();
-        markDirty();
-        YosTradePost.LOGGER.info("✅ 强制处理完成");
-    }
-
-    // 🔧 手动设置时间（用于修复）
-    public void setManualTime(long manualLastProcessTime, long manualBaseTime) {
-        YosTradePost.LOGGER.info("🔧 手动设置时间：lastProcessTime={}, baseTime={}",
-                manualLastProcessTime, manualBaseTime);
-
-        lastProcessTime = manualLastProcessTime;
-        baseTime = manualBaseTime;
-        markDirty();
-
-        // 显示状态
-        long currentTime = getCurrentWorldTime();
-        long daysSinceBase = baseTime >= 0 ? (currentTime - baseTime) / TICKS_PER_DAY : -1;
-        long lastDays = baseTime >= 0 && lastProcessTime >= 0 ?
-                (lastProcessTime - baseTime) / TICKS_PER_DAY : -1;
-
-        YosTradePost.LOGGER.info("设置后状态：当前={}, 相对天数={}, 上次处理相对天数={}",
-                currentTime, daysSinceBase, lastDays);
+        YosTradePost.LOGGER.info("交易处理完成，填充了{}个槽位", filledSlots);
     }
 
     // 执行一次完整的交易处理
@@ -466,39 +360,17 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
     public void readNbt(net.minecraft.nbt.NbtCompound nbt) {
         super.readNbt(nbt);
 
-        // 读取新字段
-        if (nbt.contains("LastProcessTime")) {
-            lastProcessTime = nbt.getLong("LastProcessTime");
+        // 读取数据
+        if (nbt.contains("LastTradeDay")) {
+            lastTradeDay = nbt.getLong("LastTradeDay");
         } else {
-            lastProcessTime = -1;
-        }
-
-        if (nbt.contains("BaseTime")) {
-            baseTime = nbt.getLong("BaseTime");
-        } else {
-            baseTime = -1;
+            lastTradeDay = -1;
         }
 
         // 验证数据
-        validateAndFixTimeData();
-    }
-
-    private void validateAndFixTimeData() {
-        long currentTime = getCurrentWorldTime();
-
-        // 如果基准时间无效，设置为当前时间
-        if (baseTime < 0 || baseTime > currentTime + TICKS_PER_DAY * 365) {
-            baseTime = Math.max(0, currentTime - (currentTime % TICKS_PER_DAY));
-        }
-
-        // 如果处理时间无效，重置
-        if (lastProcessTime < -1 || lastProcessTime > currentTime + TICKS_PER_DAY * 365) {
-            lastProcessTime = -1;
-        }
-
-        // 确保基准时间不晚于处理时间
-        if (lastProcessTime >= 0 && baseTime > lastProcessTime) {
-            baseTime = lastProcessTime - (lastProcessTime % TICKS_PER_DAY);
+        if (lastTradeDay < -1 || lastTradeDay > 1000000) {
+            YosTradePost.LOGGER.warn("读取到无效的LastTradeDay: {}，重置为-1", lastTradeDay);
+            lastTradeDay = -1;
         }
     }
 
@@ -506,19 +378,11 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
     protected void writeNbt(net.minecraft.nbt.NbtCompound nbt) {
         super.writeNbt(nbt);
 
-        // 保存新字段
-        nbt.putLong("LastProcessTime", lastProcessTime);
-        nbt.putLong("BaseTime", baseTime);
-
-        // 删除旧字段
-        nbt.remove("LastTradeDay");
-        nbt.remove("LastProcessedDay");
-        nbt.remove("lastTradeDay");
-        nbt.remove("lastProcessedDay");
-
-        if (debugMode) {
-            YosTradePost.LOGGER.info("保存时间数据：LastProcessTime={}, BaseTime={}",
-                    lastProcessTime, baseTime);
+        // 保存数据
+        if (lastTradeDay >= -1) {
+            nbt.putLong("LastTradeDay", lastTradeDay);
+        } else {
+            nbt.putLong("LastTradeDay", -1);
         }
     }
 }
