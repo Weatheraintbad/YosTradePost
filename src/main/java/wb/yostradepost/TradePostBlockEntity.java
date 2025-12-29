@@ -197,8 +197,12 @@ public class TradePostBlockEntity extends BlockEntity implements NamedScreenHand
         List<ItemStack> secondResult = processSinglePass(firstResult);
         YosTradePost.LOGGER.info("第二次处理结果: {}个物品堆栈", secondResult.size());
 
+        // 第三步处理（新增）
+        List<ItemStack> thirdResult = processSinglePass(secondResult);
+        YosTradePost.LOGGER.info("第三次处理结果: {}个物品堆栈", thirdResult.size());
+
         // 整理物品堆叠
-        List<ItemStack> organizedResult = organizeItemsSimple(secondResult);
+        List<ItemStack> organizedResult = organizeItemsSimple(thirdResult);
         YosTradePost.LOGGER.info("整理后结果: {}个物品堆栈", organizedResult.size());
 
         // 清空并填充整理后的结果
