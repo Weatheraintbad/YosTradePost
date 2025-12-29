@@ -35,15 +35,13 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 public class YosTradePost implements ModInitializer {
 
-    // 更新默认配置为表格格式
+    // 更新默认配置为表格格式，修改兑换比例
     public static final String defaultConfig = "{\n" +
             "  \"trades\": [\n" +
             "    [\"输入物品ID\", \"输入数量\", \"输出物品ID\", \"输出数量\"],\n" +
-            "    [\"minecraft:iron_ingot\", 64, \"minecraft:emerald\", 1],\n" +
-            "    [\"minecraft:gold_ingot\", 32, \"minecraft:emerald\", 1],\n" +
-            "    [\"minecraft:diamond\", 1, \"minecraft:emerald\", 4],\n" +
-            "    [\"minecraft:cobblestone\", 64, \"minecraft:iron_nugget\", 4],\n" +
-            "    [\"minecraft:rotten_flesh\", 32, \"minecraft:emerald\", 1]\n" +
+            "    [\"minecraft:iron_ingot\", 8, \"minecraft:emerald\", 1],\n" +
+            "    [\"minecraft:gold_ingot\", 2, \"minecraft:emerald\", 1],\n" +
+            "    [\"minecraft:emerald\", 8, \"minecraft:diamond\", 1]\n" +
             "  ]\n" +
             "}";
 
