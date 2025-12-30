@@ -38,7 +38,7 @@ Provides a highly customizable and clean way to configure.
 
 - 示例 Example：
 
-  8 铁锭（minecraft:iron）-> 1 绿宝石（minecraft:emerald）
+  8 铁锭（minecraft:iron_ingot）-> 1 绿宝石（minecraft:emerald）
 
   ["minecraft:iron_ingot", 8, "minecraft:emerald", 1]
 
