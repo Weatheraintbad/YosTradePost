@@ -10,8 +10,8 @@ Adds a new trading block similar to Stardew Valley shipping box for Minecraft.
 
 </div>
 
-### 贸易站(Trade Post) yostradepost:tradepost 在创造模式下位于原版实用方块栏，可使用红色羊毛、白色羊毛、橡木木板和木桶合成。
-Trade Post (yostradepost:tradepost) is located in the original crafting bar in creative mode and can be synthesized using red wool, white wool, oak planks, and wooden barrels.
+### 贸易站(Trade Post) yostradepost:tradepost 在创造模式下位于原版实用方块栏，可使用红色羊毛、白色羊毛、任意类型木板和木桶合成。
+Trade Post (yostradepost:tradepost) is located in the original utility block bar in Creative mode and can be crafted using red wool, white wool, any type of plank, and barrel.
 
 <div align="center">
 
@@ -19,10 +19,8 @@ Trade Post (yostradepost:tradepost) is located in the original crafting bar in c
 
 </div>
 
-
 ### 玩家将需要交易的物品放入后，贸易站会在新的一天处理交易，将指定的物品转换成另一种指定的物品（可在config文件夹内yostradepost.json中配置）。
 After the player puts in the item to be traded, the trading post will process the transaction on a new day, converting the specified item into another specified item (Configurable in the yostradepost.json in the config folder).
-
 
 ### 提供高度可自定义且简洁的配置方式。
 Provides a highly customizable and clean way to configure.
@@ -57,8 +55,6 @@ Provides a highly customizable and clean way to configure.
 
 - 以上配置中玩家输入的铁锭和金锭会被转换成绿宝石（第一次处理），若输入铁锭/金锭的数量能兑换超过8个绿宝石，则自动转换为1个钻石（第二次处理），无第三次处理。<br>
   In this configuration, the iron and gold ingots entered by the player will be converted into emeralds (first processing), and if the number of iron/gold ingots entered can be exchanged for more than 8 emeralds, it will be automatically converted to 1 diamond (second processing) without a third processing.
-
-
 ### 目前支持的版本：
 
 Fabric 1.20.1（需要 Fabric Loader 0.16.14 以及上版本，Fabric API任意版本）。
