@@ -14,7 +14,7 @@
       "item": "minecraft:white_wool"
     },
     "M": {
-      "item": "minecraft:oak_planks"
+      "tag": "minecraft:planks"
     },
     "B": {
       "item": "minecraft:barrel"
