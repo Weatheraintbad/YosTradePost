@@ -1,5 +1,5 @@
 {
-  "block.yostradepost.trade_post": "贸易站",
-  "item.yostradepost.trade_post": "贸易站",
+  "block.yostradepost.trade_post": "出货箱",
+  "item.yostradepost.trade_post": "出货箱",
   "tooltip.yostradepost.exchange_info": "可出售：%d → %d %s"
 }
