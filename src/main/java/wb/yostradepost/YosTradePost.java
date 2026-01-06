@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.object.builder.v1.block.FabricBlockSettings;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
 import net.minecraft.block.Block;
@@ -24,12 +25,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import wb.yostradepost.network.TradeConfigPayload;
+import wb.yostradepost.network.TradeConfigSync;
+
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 import static net.minecraft.server.command.CommandManager.literal;
 
@@ -57,6 +58,7 @@ public class YosTradePost implements ModInitializer {
 
     public static final PlayerInventoryManager inventoryManager = new PlayerInventoryManager();
     public static final File inventoryFile = new File("config/yostradepost.dat");
+    public static final Map<Identifier, Trade> INPUT_TRADE_MAP = new HashMap<>();
     private static HashMap<Identifier, Item> wrongIdItemsCheck;
 
     static {
@@ -116,6 +118,9 @@ public class YosTradePost implements ModInitializer {
                                 .setStyle(net.minecraft.text.Style.EMPTY.withColor(net.minecraft.util.Formatting.YELLOW)));
                         return 1;
                     }));
+
+            ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                    TradeConfigSync.sendToPlayer(handler.getPlayer()));
         });
     }
 
@@ -309,6 +314,11 @@ public class YosTradePost implements ModInitializer {
         } catch (Exception e) {
             LOGGER.error("Failed to parse config file: {}", e.getMessage());
             e.printStackTrace();
+        }
+
+        INPUT_TRADE_MAP.clear();
+        for (Trade trade : trades) {
+            INPUT_TRADE_MAP.put(new Identifier(trade.getInputItem()), trade);
         }
     }
 }

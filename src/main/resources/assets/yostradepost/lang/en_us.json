@@ -1,4 +1,5 @@
 {
   "block.yostradepost.trade_post": "Trade Post",
-  "item.yostradepost.trade_post": "Trade Post"
+  "item.yostradepost.trade_post": "Trade Post",
+  "tooltip.yostradepost.exchange_info": "Available for sale: %d → %d %s"
 }
