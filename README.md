@@ -22,6 +22,12 @@ Trade Post (yostradepost:tradepost) is located in the original utility block bar
 ### 玩家将需要交易的物品放入后，贸易站会在新的一天处理交易，将指定的物品转换成另一种指定的物品（可在config文件夹内yostradepost.json中配置）。
 After the player puts in the item to be traded, the trading post will process the transaction on a new day, converting the specified item into another specified item (Configurable in the yostradepost.json in the config folder).
 
+<div align="center">
+
+<img width="500" height="227" alt="d4e571c5269f26d456644430ea45d443" src="https://github.com/user-attachments/assets/883f8ce3-f106-4ce2-a92c-706781fa2e11" />
+
+</div>
+
 ### 提供高度可自定义且简洁的配置方式。
 Provides a highly customizable and clean way to configure.
 
